@@ -32,4 +32,29 @@ public class RolesController(OpenIgaDbContext dbContext) : ControllerBase
 
         return CreatedAtAction(nameof(GetRole), new { id = role.Id }, role);
     }
+
+    [HttpPost("{id:guid}/permissions")]
+    public async Task<IActionResult> AssignPermission(Guid id, AssignPermissionRequest request)
+    {
+        var roleExists = await dbContext.Roles.AnyAsync(role => role.Id == id);
+        var permissionExists = await dbContext.Permissions.AnyAsync(permission => permission.Id == request.PermissionId);
+        if (!roleExists || !permissionExists)
+        {
+            return NotFound();
+        }
+
+        var alreadyAssigned = await dbContext.RolePermissions.AnyAsync(rolePermission =>
+            rolePermission.RoleId == id && rolePermission.PermissionId == request.PermissionId);
+        if (alreadyAssigned)
+        {
+            return NoContent();
+        }
+
+        dbContext.RolePermissions.Add(new RolePermission { RoleId = id, PermissionId = request.PermissionId });
+        await dbContext.SaveChangesAsync();
+
+        return NoContent();
+    }
 }
+
+public record AssignPermissionRequest(Guid PermissionId);

@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenIga.Api.Data;
 using OpenIga.Api.Models;
+using OpenIga.Api.Services;
 
 namespace OpenIga.Api.Controllers;
 
 [ApiController]
 [Route("users")]
-public class UsersController(OpenIgaDbContext dbContext) : ControllerBase
+public class UsersController(OpenIgaDbContext dbContext, IPermissionResolutionService permissionResolutionService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<User>>> GetUsers()
@@ -86,6 +87,19 @@ public class UsersController(OpenIgaDbContext dbContext) : ControllerBase
         await dbContext.SaveChangesAsync();
 
         return NoContent();
+    }
+
+    [HttpGet("{id:guid}/permissions")]
+    public async Task<ActionResult<IReadOnlyCollection<EffectivePermissionDto>>> GetEffectivePermissions(Guid id)
+    {
+        var userExists = await dbContext.Users.AnyAsync(user => user.Id == id);
+        if (!userExists)
+        {
+            return NotFound();
+        }
+
+        var permissions = await permissionResolutionService.GetEffectivePermissionsAsync(id);
+        return Ok(permissions);
     }
 }
 
