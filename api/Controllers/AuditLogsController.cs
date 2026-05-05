@@ -6,11 +6,11 @@ namespace OpenIga.Api.Controllers;
 
 [ApiController]
 [Route("audit-logs")]
-public class AuditLogsController(IAuditLogService auditLogService) : ControllerBase
+public class AuditLogsController(IAuditService auditService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AuditLogDto>>> GetAuditLogs()
     {
-        return Ok(await auditLogService.GetAuditLogsAsync());
+        return Ok(await auditService.GetAuditLogsAsync());
     }
 }

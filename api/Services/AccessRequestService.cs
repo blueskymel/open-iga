@@ -1,49 +1,43 @@
-using Microsoft.EntityFrameworkCore;
-using OpenIga.Api.Data;
 using OpenIga.Api.Dtos;
 using OpenIga.Api.Models;
+using OpenIga.Api.Repositories;
 
 namespace OpenIga.Api.Services;
 
-public class AccessRequestService(OpenIgaDbContext dbContext, IAuditLogService auditLogService) : IAccessRequestService
+public class AccessRequestService(
+    IAccessRequestRepository accessRequestRepository,
+    IUserRepository userRepository,
+    IProvisioningService provisioningService,
+    IAuditService auditService) : IAccessRequestService
 {
     public async Task<IReadOnlyCollection<AccessRequestDto>> GetAccessRequestsAsync()
     {
-        return await dbContext.AccessRequests
-            .AsNoTracking()
-            .Select(accessRequest => accessRequest.ToDto())
-            .ToListAsync();
+        var accessRequests = await accessRequestRepository.GetAllAsync();
+        return accessRequests.Select(accessRequest => accessRequest.ToDto()).ToList();
     }
 
     public async Task<AccessRequestDto?> GetAccessRequestAsync(Guid id)
     {
-        var accessRequest = await dbContext.AccessRequests
-            .AsNoTracking()
-            .FirstOrDefaultAsync(request => request.Id == id);
-
+        var accessRequest = await accessRequestRepository.GetByIdAsync(id);
         return accessRequest?.ToDto();
     }
 
     public async Task<ServiceResult<AccessRequestDto>> CreateAccessRequestAsync(CreateAccessRequestRequest request)
     {
-        var userExists = await dbContext.Users.AnyAsync(user => user.Id == request.UserId);
-        var roleExists = await dbContext.Roles.AnyAsync(role => role.Id == request.RoleId);
+        var userExists = await userRepository.ExistsAsync(request.UserId);
+        var roleExists = await provisioningService.RoleExistsAsync(request.RoleId);
         if (!userExists || !roleExists)
         {
             return ServiceResult<AccessRequestDto>.Failure(ServiceError.NotFound, "User or role was not found.");
         }
 
-        var alreadyAssigned = await dbContext.UserRoles.AnyAsync(userRole =>
-            userRole.UserId == request.UserId && userRole.RoleId == request.RoleId);
+        var alreadyAssigned = await provisioningService.UserHasRoleAsync(request.UserId, request.RoleId);
         if (alreadyAssigned)
         {
             return ServiceResult<AccessRequestDto>.Failure(ServiceError.Conflict, "User already has this role.");
         }
 
-        var existingPendingRequest = await dbContext.AccessRequests.AnyAsync(accessRequest =>
-            accessRequest.UserId == request.UserId
-            && accessRequest.RoleId == request.RoleId
-            && accessRequest.Status == AccessRequestStatus.Pending);
+        var existingPendingRequest = await accessRequestRepository.PendingRequestExistsAsync(request.UserId, request.RoleId);
         if (existingPendingRequest)
         {
             return ServiceResult<AccessRequestDto>.Failure(
@@ -60,16 +54,16 @@ public class AccessRequestService(OpenIgaDbContext dbContext, IAuditLogService a
             RequestedAt = DateTime.UtcNow
         };
 
-        dbContext.AccessRequests.Add(accessRequest);
-        await dbContext.SaveChangesAsync();
-        await auditLogService.LogAsync(AuditAction.AccessRequestCreated, request.PerformedBy, request.UserId);
+        accessRequestRepository.Add(accessRequest);
+        await accessRequestRepository.SaveChangesAsync();
+        await auditService.LogAsync(AuditAction.AccessRequestCreated, request.PerformedBy, request.UserId);
 
         return ServiceResult<AccessRequestDto>.Success(accessRequest.ToDto());
     }
 
     public async Task<ServiceResult<AccessRequestDto>> ApproveAccessRequestAsync(Guid id, ReviewAccessRequestRequest request)
     {
-        var accessRequest = await dbContext.AccessRequests.FindAsync(id);
+        var accessRequest = await accessRequestRepository.GetByIdAsync(id, trackChanges: true);
         if (accessRequest is null)
         {
             return ServiceResult<AccessRequestDto>.Failure(ServiceError.NotFound, "Access request was not found.");
@@ -86,27 +80,26 @@ public class AccessRequestService(OpenIgaDbContext dbContext, IAuditLogService a
         accessRequest.ApprovedBy = request.ReviewedBy;
         accessRequest.ApprovedAt = DateTime.UtcNow;
 
-        var alreadyAssigned = await dbContext.UserRoles.AnyAsync(userRole =>
-            userRole.UserId == accessRequest.UserId && userRole.RoleId == accessRequest.RoleId);
-        if (!alreadyAssigned)
+        var provisioningResult = await provisioningService.AssignRoleToUserAsync(
+            accessRequest.UserId,
+            accessRequest.RoleId,
+            request.ReviewedBy);
+        if (!provisioningResult.Succeeded)
         {
-            dbContext.UserRoles.Add(new UserRole
-            {
-                UserId = accessRequest.UserId,
-                RoleId = accessRequest.RoleId
-            });
+            return ServiceResult<AccessRequestDto>.Failure(
+                provisioningResult.Error!.Value,
+                provisioningResult.Message ?? "Role assignment failed.");
         }
 
-        await dbContext.SaveChangesAsync();
-        await auditLogService.LogAsync(AuditAction.AccessRequestApproved, request.ReviewedBy, accessRequest.UserId);
-        await auditLogService.LogAsync(AuditAction.RoleAssignedToUser, request.ReviewedBy, accessRequest.UserId);
+        await accessRequestRepository.SaveChangesAsync();
+        await auditService.LogAsync(AuditAction.AccessRequestApproved, request.ReviewedBy, accessRequest.UserId);
 
         return ServiceResult<AccessRequestDto>.Success(accessRequest.ToDto());
     }
 
     public async Task<ServiceResult<AccessRequestDto>> RejectAccessRequestAsync(Guid id, ReviewAccessRequestRequest request)
     {
-        var accessRequest = await dbContext.AccessRequests.FindAsync(id);
+        var accessRequest = await accessRequestRepository.GetByIdAsync(id, trackChanges: true);
         if (accessRequest is null)
         {
             return ServiceResult<AccessRequestDto>.Failure(ServiceError.NotFound, "Access request was not found.");
@@ -123,8 +116,8 @@ public class AccessRequestService(OpenIgaDbContext dbContext, IAuditLogService a
         accessRequest.ApprovedBy = request.ReviewedBy;
         accessRequest.ApprovedAt = DateTime.UtcNow;
 
-        await dbContext.SaveChangesAsync();
-        await auditLogService.LogAsync(AuditAction.AccessRequestRejected, request.ReviewedBy, accessRequest.UserId);
+        await accessRequestRepository.SaveChangesAsync();
+        await auditService.LogAsync(AuditAction.AccessRequestRejected, request.ReviewedBy, accessRequest.UserId);
 
         return ServiceResult<AccessRequestDto>.Success(accessRequest.ToDto());
     }

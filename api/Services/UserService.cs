@@ -1,23 +1,23 @@
-using Microsoft.EntityFrameworkCore;
-using OpenIga.Api.Data;
 using OpenIga.Api.Dtos;
 using OpenIga.Api.Models;
+using OpenIga.Api.Repositories;
 
 namespace OpenIga.Api.Services;
 
-public class UserService(OpenIgaDbContext dbContext, IAuditLogService auditLogService) : IUserService
+public class UserService(
+    IUserRepository userRepository,
+    IProvisioningService provisioningService,
+    IAuditService auditService) : IUserService
 {
     public async Task<IReadOnlyCollection<UserDto>> GetUsersAsync()
     {
-        return await dbContext.Users
-            .AsNoTracking()
-            .Select(user => user.ToDto())
-            .ToListAsync();
+        var users = await userRepository.GetAllAsync();
+        return users.Select(user => user.ToDto()).ToList();
     }
 
     public async Task<UserDto?> GetUserAsync(Guid id)
     {
-        var user = await dbContext.Users.AsNoTracking().FirstOrDefaultAsync(user => user.Id == id);
+        var user = await userRepository.GetByIdAsync(id);
         return user?.ToDto();
     }
 
@@ -28,7 +28,7 @@ public class UserService(OpenIgaDbContext dbContext, IAuditLogService auditLogSe
             return ServiceResult<UserDto>.Failure(ServiceError.Validation, "Email is required.");
         }
 
-        var emailExists = await dbContext.Users.AnyAsync(user => user.Email == request.Email);
+        var emailExists = await userRepository.EmailExistsAsync(request.Email);
         if (emailExists)
         {
             return ServiceResult<UserDto>.Failure(ServiceError.Conflict, "A user with this email already exists.");
@@ -43,16 +43,16 @@ public class UserService(OpenIgaDbContext dbContext, IAuditLogService auditLogSe
             CreatedAt = DateTime.UtcNow
         };
 
-        dbContext.Users.Add(user);
-        await dbContext.SaveChangesAsync();
-        await auditLogService.LogAsync(AuditAction.UserCreated, request.PerformedBy, user.Id);
+        userRepository.Add(user);
+        await userRepository.SaveChangesAsync();
+        await auditService.LogAsync(AuditAction.UserCreated, request.PerformedBy, user.Id);
 
         return ServiceResult<UserDto>.Success(user.ToDto());
     }
 
     public async Task<ServiceResult> UpdateUserAsync(Guid id, UpdateUserRequest request)
     {
-        var user = await dbContext.Users.FindAsync(id);
+        var user = await userRepository.GetByIdAsync(id, trackChanges: true);
         if (user is null)
         {
             return ServiceResult.Failure(ServiceError.NotFound, "User was not found.");
@@ -62,44 +62,26 @@ public class UserService(OpenIgaDbContext dbContext, IAuditLogService auditLogSe
         user.Name = request.Name;
         user.Status = request.Status;
 
-        await dbContext.SaveChangesAsync();
+        await userRepository.SaveChangesAsync();
         return ServiceResult.Success();
     }
 
     public async Task<ServiceResult> DeleteUserAsync(Guid id)
     {
-        var user = await dbContext.Users.FindAsync(id);
+        var user = await userRepository.GetByIdAsync(id, trackChanges: true);
         if (user is null)
         {
             return ServiceResult.Failure(ServiceError.NotFound, "User was not found.");
         }
 
-        dbContext.Users.Remove(user);
-        await dbContext.SaveChangesAsync();
+        userRepository.Remove(user);
+        await userRepository.SaveChangesAsync();
 
         return ServiceResult.Success();
     }
 
     public async Task<ServiceResult> AssignRoleAsync(Guid userId, AssignRoleRequest request)
     {
-        var userExists = await dbContext.Users.AnyAsync(user => user.Id == userId);
-        var roleExists = await dbContext.Roles.AnyAsync(role => role.Id == request.RoleId);
-        if (!userExists || !roleExists)
-        {
-            return ServiceResult.Failure(ServiceError.NotFound, "User or role was not found.");
-        }
-
-        var alreadyAssigned = await dbContext.UserRoles.AnyAsync(userRole =>
-            userRole.UserId == userId && userRole.RoleId == request.RoleId);
-        if (alreadyAssigned)
-        {
-            return ServiceResult.Success();
-        }
-
-        dbContext.UserRoles.Add(new UserRole { UserId = userId, RoleId = request.RoleId });
-        await dbContext.SaveChangesAsync();
-        await auditLogService.LogAsync(AuditAction.RoleAssignedToUser, request.PerformedBy, userId);
-
-        return ServiceResult.Success();
+        return await provisioningService.AssignRoleToUserAsync(userId, request.RoleId, request.PerformedBy);
     }
 }

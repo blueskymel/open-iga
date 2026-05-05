@@ -3,7 +3,7 @@ using OpenIga.Api.Models;
 
 namespace OpenIga.Api.Services;
 
-public interface IAuditLogService
+public interface IAuditService
 {
     Task LogAsync(AuditAction action, Guid? performedBy, Guid? targetUser);
     Task<IReadOnlyCollection<AuditLogDto>> GetAuditLogsAsync();
