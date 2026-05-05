@@ -10,4 +10,5 @@ public interface IUserService
     Task<ServiceResult> UpdateUserAsync(Guid id, UpdateUserRequest request);
     Task<ServiceResult> DeleteUserAsync(Guid id);
     Task<ServiceResult> AssignRoleAsync(Guid userId, AssignRoleRequest request);
+    Task<ServiceResult<IReadOnlyCollection<EffectivePermissionDto>>> GetEffectivePermissionsAsync(Guid userId);
 }

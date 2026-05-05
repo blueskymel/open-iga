@@ -6,7 +6,7 @@ namespace OpenIga.Api.Controllers;
 
 [ApiController]
 [Route("users")]
-public class UsersController(IUserService userService, IPermissionResolutionService permissionResolutionService) : ControllerBase
+public class UsersController(IUserService userService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
@@ -58,14 +58,8 @@ public class UsersController(IUserService userService, IPermissionResolutionServ
     [HttpGet("{id:guid}/permissions")]
     public async Task<ActionResult<IReadOnlyCollection<EffectivePermissionDto>>> GetEffectivePermissions(Guid id)
     {
-        var user = await userService.GetUserAsync(id);
-        if (user is null)
-        {
-            return NotFound();
-        }
-
-        var permissions = await permissionResolutionService.GetEffectivePermissionsAsync(id);
-        return Ok(permissions);
+        var result = await userService.GetEffectivePermissionsAsync(id);
+        return result.Succeeded ? Ok(result.Value) : ToErrorResult(result);
     }
 
     private ActionResult ToErrorResult(ServiceResult result) =>

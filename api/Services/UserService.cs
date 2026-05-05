@@ -7,7 +7,8 @@ namespace OpenIga.Api.Services;
 public class UserService(
     IUserRepository userRepository,
     IProvisioningService provisioningService,
-    IAuditService auditService) : IUserService
+    IAuditService auditService,
+    IPermissionResolutionService permissionResolutionService) : IUserService
 {
     public async Task<IReadOnlyCollection<UserDto>> GetUsersAsync()
     {
@@ -83,5 +84,19 @@ public class UserService(
     public async Task<ServiceResult> AssignRoleAsync(Guid userId, AssignRoleRequest request)
     {
         return await provisioningService.AssignRoleToUserAsync(userId, request.RoleId, request.PerformedBy);
+    }
+
+    public async Task<ServiceResult<IReadOnlyCollection<EffectivePermissionDto>>> GetEffectivePermissionsAsync(Guid userId)
+    {
+        var userExists = await userRepository.ExistsAsync(userId);
+        if (!userExists)
+        {
+            return ServiceResult<IReadOnlyCollection<EffectivePermissionDto>>.Failure(
+                ServiceError.NotFound,
+                "User was not found.");
+        }
+
+        var permissions = await permissionResolutionService.GetEffectivePermissionsAsync(userId);
+        return ServiceResult<IReadOnlyCollection<EffectivePermissionDto>>.Success(permissions);
     }
 }

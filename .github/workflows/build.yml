@@ -1,0 +1,41 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore API dependencies
+        run: dotnet restore ./api/api.csproj
+
+      - name: Build API
+        run: dotnet build ./api/api.csproj --configuration Release --no-restore
+
+      - name: Run tests
+        shell: bash
+        run: |
+          test_projects=$(find . -name '*Tests.csproj' -print)
+          if [ -z "$test_projects" ]; then
+            echo "No test projects found."
+            exit 0
+          fi
+
+          for project in $test_projects; do
+            dotnet test "$project" --configuration Release --verbosity normal
+          done
