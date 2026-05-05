@@ -8,7 +8,8 @@ public class AccessRequestService(
     IAccessRequestRepository accessRequestRepository,
     IUserRepository userRepository,
     IProvisioningService provisioningService,
-    IAuditService auditService) : IAccessRequestService
+    IAuditService auditService,
+    ICurrentUserService currentUserService) : IAccessRequestService
 {
     public async Task<IReadOnlyCollection<AccessRequestDto>> GetAccessRequestsAsync()
     {
@@ -56,12 +57,12 @@ public class AccessRequestService(
 
         accessRequestRepository.Add(accessRequest);
         await accessRequestRepository.SaveChangesAsync();
-        await auditService.LogAsync(AuditAction.AccessRequestCreated, request.PerformedBy, request.UserId);
+        await auditService.LogAsync(AuditAction.AccessRequestCreated, currentUserService.UserId, request.UserId);
 
         return ServiceResult<AccessRequestDto>.Success(accessRequest.ToDto());
     }
 
-    public async Task<ServiceResult<AccessRequestDto>> ApproveAccessRequestAsync(Guid id, ReviewAccessRequestRequest request)
+    public async Task<ServiceResult<AccessRequestDto>> ApproveAccessRequestAsync(Guid id)
     {
         var accessRequest = await accessRequestRepository.GetByIdAsync(id, trackChanges: true);
         if (accessRequest is null)
@@ -77,13 +78,13 @@ public class AccessRequestService(
         }
 
         accessRequest.Status = AccessRequestStatus.Approved;
-        accessRequest.ApprovedBy = request.ReviewedBy;
+        accessRequest.ApprovedBy = currentUserService.UserId;
         accessRequest.ApprovedAt = DateTime.UtcNow;
 
         var provisioningResult = await provisioningService.AssignRoleToUserAsync(
             accessRequest.UserId,
             accessRequest.RoleId,
-            request.ReviewedBy);
+            currentUserService.UserId);
         if (!provisioningResult.Succeeded)
         {
             return ServiceResult<AccessRequestDto>.Failure(
@@ -92,12 +93,12 @@ public class AccessRequestService(
         }
 
         await accessRequestRepository.SaveChangesAsync();
-        await auditService.LogAsync(AuditAction.AccessRequestApproved, request.ReviewedBy, accessRequest.UserId);
+        await auditService.LogAsync(AuditAction.AccessRequestApproved, currentUserService.UserId, accessRequest.UserId);
 
         return ServiceResult<AccessRequestDto>.Success(accessRequest.ToDto());
     }
 
-    public async Task<ServiceResult<AccessRequestDto>> RejectAccessRequestAsync(Guid id, ReviewAccessRequestRequest request)
+    public async Task<ServiceResult<AccessRequestDto>> RejectAccessRequestAsync(Guid id)
     {
         var accessRequest = await accessRequestRepository.GetByIdAsync(id, trackChanges: true);
         if (accessRequest is null)
@@ -113,11 +114,11 @@ public class AccessRequestService(
         }
 
         accessRequest.Status = AccessRequestStatus.Rejected;
-        accessRequest.ApprovedBy = request.ReviewedBy;
+        accessRequest.ApprovedBy = currentUserService.UserId;
         accessRequest.ApprovedAt = DateTime.UtcNow;
 
         await accessRequestRepository.SaveChangesAsync();
-        await auditService.LogAsync(AuditAction.AccessRequestRejected, request.ReviewedBy, accessRequest.UserId);
+        await auditService.LogAsync(AuditAction.AccessRequestRejected, currentUserService.UserId, accessRequest.UserId);
 
         return ServiceResult<AccessRequestDto>.Success(accessRequest.ToDto());
     }

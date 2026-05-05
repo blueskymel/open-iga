@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenIga.Api.Dtos;
 using OpenIga.Api.Services;
@@ -5,6 +6,7 @@ using OpenIga.Api.Services;
 namespace OpenIga.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("access-requests")]
 public class AccessRequestsController(IAccessRequestService accessRequestService) : ControllerBase
 {
@@ -35,16 +37,16 @@ public class AccessRequestsController(IAccessRequestService accessRequestService
     }
 
     [HttpPost("{id:guid}/approve")]
-    public async Task<ActionResult<AccessRequestDto>> ApproveAccessRequest(Guid id, ReviewAccessRequestRequest request)
+    public async Task<ActionResult<AccessRequestDto>> ApproveAccessRequest(Guid id)
     {
-        var result = await accessRequestService.ApproveAccessRequestAsync(id, request);
+        var result = await accessRequestService.ApproveAccessRequestAsync(id);
         return result.Succeeded ? Ok(result.Value) : ToErrorResult(result);
     }
 
     [HttpPost("{id:guid}/reject")]
-    public async Task<ActionResult<AccessRequestDto>> RejectAccessRequest(Guid id, ReviewAccessRequestRequest request)
+    public async Task<ActionResult<AccessRequestDto>> RejectAccessRequest(Guid id)
     {
-        var result = await accessRequestService.RejectAccessRequestAsync(id, request);
+        var result = await accessRequestService.RejectAccessRequestAsync(id);
         return result.Succeeded ? Ok(result.Value) : ToErrorResult(result);
     }
 

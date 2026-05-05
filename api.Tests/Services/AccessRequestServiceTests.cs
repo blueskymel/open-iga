@@ -44,17 +44,20 @@ public class AccessRequestServiceTests
         auditService
             .Setup(service => service.LogAsync(AuditAction.AccessRequestApproved, reviewedBy, userId))
             .Returns(Task.CompletedTask);
+        var currentUserService = new Mock<ICurrentUserService>();
+        currentUserService
+            .Setup(service => service.UserId)
+            .Returns(reviewedBy);
 
         var service = new AccessRequestService(
             accessRequestRepository.Object,
             userRepository.Object,
             provisioningService.Object,
-            auditService.Object);
+            auditService.Object,
+            currentUserService.Object);
 
         // Act
-        var result = await service.ApproveAccessRequestAsync(
-            accessRequestId,
-            new ReviewAccessRequestRequest(reviewedBy));
+        var result = await service.ApproveAccessRequestAsync(accessRequestId);
 
         // Assert
         Assert.True(result.Succeeded);

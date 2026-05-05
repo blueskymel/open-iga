@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenIga.Api.Dtos;
 using OpenIga.Api.Services;
@@ -5,6 +6,7 @@ using OpenIga.Api.Services;
 namespace OpenIga.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("users")]
 public class UsersController(IUserService userService) : ControllerBase
 {

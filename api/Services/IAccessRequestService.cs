@@ -7,6 +7,6 @@ public interface IAccessRequestService
     Task<IReadOnlyCollection<AccessRequestDto>> GetAccessRequestsAsync();
     Task<AccessRequestDto?> GetAccessRequestAsync(Guid id);
     Task<ServiceResult<AccessRequestDto>> CreateAccessRequestAsync(CreateAccessRequestRequest request);
-    Task<ServiceResult<AccessRequestDto>> ApproveAccessRequestAsync(Guid id, ReviewAccessRequestRequest request);
-    Task<ServiceResult<AccessRequestDto>> RejectAccessRequestAsync(Guid id, ReviewAccessRequestRequest request);
+    Task<ServiceResult<AccessRequestDto>> ApproveAccessRequestAsync(Guid id);
+    Task<ServiceResult<AccessRequestDto>> RejectAccessRequestAsync(Guid id);
 }

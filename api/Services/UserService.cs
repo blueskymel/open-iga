@@ -8,6 +8,7 @@ public class UserService(
     IUserRepository userRepository,
     IProvisioningService provisioningService,
     IAuditService auditService,
+    ICurrentUserService currentUserService,
     IPermissionResolutionService permissionResolutionService) : IUserService
 {
     public async Task<IReadOnlyCollection<UserDto>> GetUsersAsync()
@@ -46,7 +47,7 @@ public class UserService(
 
         userRepository.Add(user);
         await userRepository.SaveChangesAsync();
-        await auditService.LogAsync(AuditAction.UserCreated, request.PerformedBy, user.Id);
+        await auditService.LogAsync(AuditAction.UserCreated, currentUserService.UserId, user.Id);
 
         return ServiceResult<UserDto>.Success(user.ToDto());
     }
@@ -83,7 +84,7 @@ public class UserService(
 
     public async Task<ServiceResult> AssignRoleAsync(Guid userId, AssignRoleRequest request)
     {
-        return await provisioningService.AssignRoleToUserAsync(userId, request.RoleId, request.PerformedBy);
+        return await provisioningService.AssignRoleToUserAsync(userId, request.RoleId, currentUserService.UserId);
     }
 
     public async Task<ServiceResult<IReadOnlyCollection<EffectivePermissionDto>>> GetEffectivePermissionsAsync(Guid userId)

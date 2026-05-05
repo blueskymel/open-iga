@@ -5,7 +5,10 @@ using OpenIga.Api.Models;
 
 namespace OpenIga.Api.Services;
 
-public class RoleService(OpenIgaDbContext dbContext, IAuditService auditService) : IRoleService
+public class RoleService(
+    OpenIgaDbContext dbContext,
+    IAuditService auditService,
+    ICurrentUserService currentUserService) : IRoleService
 {
     public async Task<IReadOnlyCollection<RoleDto>> GetRolesAsync()
     {
@@ -56,7 +59,7 @@ public class RoleService(OpenIgaDbContext dbContext, IAuditService auditService)
         {
             dbContext.RolePermissions.Add(new RolePermission { RoleId = roleId, PermissionId = request.PermissionId });
             await dbContext.SaveChangesAsync();
-            await auditService.LogAsync(AuditAction.RolePermissionAssigned, request.PerformedBy, null);
+            await auditService.LogAsync(AuditAction.RolePermissionAssigned, currentUserService.UserId, null);
         }
 
         return ServiceResult.Success();
