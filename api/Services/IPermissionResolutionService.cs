@@ -1,3 +1,5 @@
+using OpenIga.Api.Dtos;
+
 namespace OpenIga.Api.Services;
 
 public interface IPermissionResolutionService

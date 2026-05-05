@@ -23,7 +23,9 @@ public class OpenIgaDbContext(DbContextOptions<OpenIgaDbContext> options) : DbCo
             entity.Property(user => user.Id).HasColumnName("id");
             entity.Property(user => user.Email).HasColumnName("email");
             entity.Property(user => user.Name).HasColumnName("name");
-            entity.Property(user => user.Status).HasColumnName("status");
+            entity.Property(user => user.Status)
+                .HasColumnName("status")
+                .HasConversion<string>();
             entity.Property(user => user.CreatedAt)
                 .HasColumnName("created_at")
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -81,7 +83,9 @@ public class OpenIgaDbContext(DbContextOptions<OpenIgaDbContext> options) : DbCo
             entity.Property(request => request.Id).HasColumnName("id");
             entity.Property(request => request.UserId).HasColumnName("user_id");
             entity.Property(request => request.RoleId).HasColumnName("role_id");
-            entity.Property(request => request.Status).HasColumnName("status");
+            entity.Property(request => request.Status)
+                .HasColumnName("status")
+                .HasConversion<string>();
             entity.Property(request => request.RequestedAt)
                 .HasColumnName("requested_at")
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -94,7 +98,9 @@ public class OpenIgaDbContext(DbContextOptions<OpenIgaDbContext> options) : DbCo
             entity.ToTable("audit_logs");
             entity.HasKey(log => log.Id);
             entity.Property(log => log.Id).HasColumnName("id");
-            entity.Property(log => log.Action).HasColumnName("action");
+            entity.Property(log => log.Action)
+                .HasColumnName("action")
+                .HasConversion<string>();
             entity.Property(log => log.PerformedBy).HasColumnName("performed_by");
             entity.Property(log => log.TargetUser).HasColumnName("target_user");
             entity.Property(log => log.Timestamp)

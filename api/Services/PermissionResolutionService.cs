@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OpenIga.Api.Data;
+using OpenIga.Api.Dtos;
 
 namespace OpenIga.Api.Services;
 

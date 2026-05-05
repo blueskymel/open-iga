@@ -1,60 +1,61 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using OpenIga.Api.Data;
-using OpenIga.Api.Models;
+using OpenIga.Api.Dtos;
+using OpenIga.Api.Services;
 
 namespace OpenIga.Api.Controllers;
 
 [ApiController]
 [Route("roles")]
-public class RolesController(OpenIgaDbContext dbContext) : ControllerBase
+public class RolesController(IRoleService roleService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Role>>> GetRoles()
+    public async Task<ActionResult<IEnumerable<RoleDto>>> GetRoles()
     {
-        return await dbContext.Roles.AsNoTracking().ToListAsync();
+        return Ok(await roleService.GetRolesAsync());
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<Role>> GetRole(Guid id)
+    public async Task<ActionResult<RoleDto>> GetRole(Guid id)
     {
-        var role = await dbContext.Roles.AsNoTracking().FirstOrDefaultAsync(role => role.Id == id);
+        var role = await roleService.GetRoleAsync(id);
 
         return role is null ? NotFound() : role;
     }
 
     [HttpPost]
-    public async Task<ActionResult<Role>> CreateRole(Role role)
+    public async Task<ActionResult<RoleDto>> CreateRole(CreateRoleRequest request)
     {
-        role.Id = role.Id == Guid.Empty ? Guid.NewGuid() : role.Id;
-        dbContext.Roles.Add(role);
-        await dbContext.SaveChangesAsync();
+        var result = await roleService.CreateRoleAsync(request);
+        if (!result.Succeeded)
+        {
+            return ToErrorResult(result);
+        }
 
-        return CreatedAtAction(nameof(GetRole), new { id = role.Id }, role);
+        return CreatedAtAction(nameof(GetRole), new { id = result.Value!.Id }, result.Value);
     }
 
     [HttpPost("{id:guid}/permissions")]
     public async Task<IActionResult> AssignPermission(Guid id, AssignPermissionRequest request)
     {
-        var roleExists = await dbContext.Roles.AnyAsync(role => role.Id == id);
-        var permissionExists = await dbContext.Permissions.AnyAsync(permission => permission.Id == request.PermissionId);
-        if (!roleExists || !permissionExists)
-        {
-            return NotFound();
-        }
-
-        var alreadyAssigned = await dbContext.RolePermissions.AnyAsync(rolePermission =>
-            rolePermission.RoleId == id && rolePermission.PermissionId == request.PermissionId);
-        if (alreadyAssigned)
-        {
-            return NoContent();
-        }
-
-        dbContext.RolePermissions.Add(new RolePermission { RoleId = id, PermissionId = request.PermissionId });
-        await dbContext.SaveChangesAsync();
-
-        return NoContent();
+        var result = await roleService.AssignPermissionAsync(id, request);
+        return result.Succeeded ? NoContent() : ToErrorResult(result);
     }
-}
 
-public record AssignPermissionRequest(Guid PermissionId);
+    private ActionResult ToErrorResult(ServiceResult result) =>
+        result.Error switch
+        {
+            ServiceError.NotFound => NotFound(result.Message),
+            ServiceError.Conflict => Conflict(result.Message),
+            ServiceError.Validation => BadRequest(result.Message),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+
+    private ActionResult ToErrorResult<T>(ServiceResult<T> result) =>
+        result.Error switch
+        {
+            ServiceError.NotFound => NotFound(result.Message),
+            ServiceError.Conflict => Conflict(result.Message),
+            ServiceError.Validation => BadRequest(result.Message),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+}
