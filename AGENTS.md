@@ -2,6 +2,10 @@
 
 ## Project Guidelines
 
+## 🧠 AI-Assisted Development
+
+This project uses AI-assisted development (OpenAI Codex) with defined engineering guidelines (see AGENTS.md) to ensure clean architecture, maintainability, and consistency.
+
 ### Architecture
 - Use clean architecture principles (separation of concerns)
 - Keep controllers thin and move logic into services
