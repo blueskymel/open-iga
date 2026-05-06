@@ -1,0 +1,10 @@
+-- Migration: Create Attestations Table
+CREATE TABLE Attestations (
+    Id SERIAL PRIMARY KEY,
+    UserId INTEGER NOT NULL REFERENCES Users(Id) ON DELETE CASCADE,
+    RoleId INTEGER NOT NULL REFERENCES Roles(Id) ON DELETE CASCADE,
+    ReviewerId INTEGER NOT NULL REFERENCES Users(Id) ON DELETE CASCADE,
+    Status INTEGER NOT NULL,
+    CreatedAt TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+);
+-- Status: 0 = Pending, 1 = Approved, 2 = Revoked

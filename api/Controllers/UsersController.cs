@@ -7,7 +7,7 @@ namespace OpenIga.Api.Controllers;
 
 [ApiController]
 [Authorize]
-[Route("users")]
+[Route("api/users")]
 public class UsersController(IUserService userService) : ControllerBase
 {
     [HttpGet]

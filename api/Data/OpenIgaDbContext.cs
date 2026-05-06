@@ -12,6 +12,7 @@ public class OpenIgaDbContext(DbContextOptions<OpenIgaDbContext> options) : DbCo
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<AccessRequest> AccessRequests => Set<AccessRequest>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<Attestation> Attestations => Set<Attestation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -105,6 +106,21 @@ public class OpenIgaDbContext(DbContextOptions<OpenIgaDbContext> options) : DbCo
             entity.Property(log => log.TargetUser).HasColumnName("target_user");
             entity.Property(log => log.Timestamp)
                 .HasColumnName("timestamp")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+        modelBuilder.Entity<Attestation>(entity =>
+        {
+            entity.ToTable("attestations");
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.Id).HasColumnName("id");
+            entity.Property(a => a.UserId).HasColumnName("user_id");
+            entity.Property(a => a.RoleId).HasColumnName("role_id");
+            entity.Property(a => a.ReviewerId).HasColumnName("reviewer_id");
+            entity.Property(a => a.Status)
+                .HasColumnName("status")
+                .HasConversion<string>();
+            entity.Property(a => a.CreatedAt)
+                .HasColumnName("created_at")
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
     }

@@ -27,7 +27,18 @@ public class AccessRequestsController(IAccessRequestService accessRequestService
     [HttpPost]
     public async Task<ActionResult<AccessRequestDto>> CreateAccessRequest(CreateAccessRequestRequest request)
     {
-        var result = await accessRequestService.CreateAccessRequestAsync(request);
+        // Extract user from claims (CurrentUserService)
+        var userId = HttpContext.User.FindFirst("oid")?.Value
+            ?? HttpContext.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+            ?? HttpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? HttpContext.User.FindFirst("sub")?.Value;
+
+        if (!Guid.TryParse(userId, out var parsedUserId))
+        {
+            return Unauthorized("User identity not found in token.");
+        }
+
+        var result = await accessRequestService.CreateAccessRequestAsync(parsedUserId, request);
         if (!result.Succeeded)
         {
             return ToErrorResult(result);

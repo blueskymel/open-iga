@@ -11,4 +11,4 @@ public record AccessRequestDto(
     Guid? ApprovedBy,
     DateTime? ApprovedAt);
 
-public record CreateAccessRequestRequest(Guid UserId, Guid RoleId);
+public record CreateAccessRequestRequest(Guid RoleId);

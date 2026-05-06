@@ -1,0 +1,12 @@
+<div style="padding:2rem;max-width:700px;margin:auto;">
+  <h1>Open IGA Dashboard</h1>
+  <ng-container *ngIf="isLoggedIn; else showLogin">
+    <button (click)="logout()" style="float:right;margin:1rem;">Logout</button>
+    <!-- Place your dashboard/home content here -->
+    <app-home></app-home>
+  </ng-container>
+  <ng-template #showLogin>
+    <button (click)="login()">Login</button>
+  </ng-template>
+</div>
+  <div *ngIf="!accessRequests.length">No access requests found.</div>

@@ -23,22 +23,22 @@ public class AccessRequestService(
         return accessRequest?.ToDto();
     }
 
-    public async Task<ServiceResult<AccessRequestDto>> CreateAccessRequestAsync(CreateAccessRequestRequest request)
+    public async Task<ServiceResult<AccessRequestDto>> CreateAccessRequestAsync(Guid userId, CreateAccessRequestRequest request)
     {
-        var userExists = await userRepository.ExistsAsync(request.UserId);
+        var userExists = await userRepository.ExistsAsync(userId);
         var roleExists = await provisioningService.RoleExistsAsync(request.RoleId);
         if (!userExists || !roleExists)
         {
             return ServiceResult<AccessRequestDto>.Failure(ServiceError.NotFound, "User or role was not found.");
         }
 
-        var alreadyAssigned = await provisioningService.UserHasRoleAsync(request.UserId, request.RoleId);
+        var alreadyAssigned = await provisioningService.UserHasRoleAsync(userId, request.RoleId);
         if (alreadyAssigned)
         {
             return ServiceResult<AccessRequestDto>.Failure(ServiceError.Conflict, "User already has this role.");
         }
 
-        var existingPendingRequest = await accessRequestRepository.PendingRequestExistsAsync(request.UserId, request.RoleId);
+        var existingPendingRequest = await accessRequestRepository.PendingRequestExistsAsync(userId, request.RoleId);
         if (existingPendingRequest)
         {
             return ServiceResult<AccessRequestDto>.Failure(
@@ -49,7 +49,7 @@ public class AccessRequestService(
         var accessRequest = new AccessRequest
         {
             Id = Guid.NewGuid(),
-            UserId = request.UserId,
+            UserId = userId,
             RoleId = request.RoleId,
             Status = AccessRequestStatus.Pending,
             RequestedAt = DateTime.UtcNow
@@ -57,7 +57,7 @@ public class AccessRequestService(
 
         accessRequestRepository.Add(accessRequest);
         await accessRequestRepository.SaveChangesAsync();
-        await auditService.LogAsync(AuditAction.AccessRequestCreated, currentUserService.UserId, request.UserId);
+        await auditService.LogAsync(AuditAction.AccessRequestCreated, currentUserService.UserId, userId);
 
         return ServiceResult<AccessRequestDto>.Success(accessRequest.ToDto());
     }

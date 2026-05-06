@@ -1,6 +1,6 @@
-@api_HostAddress = http://localhost:5083
+@api_HostAddress = http://localhost:5000
 
 GET {{api_HostAddress}}/weatherforecast/
 Accept: application/json
 
-###
+### docker run --name openiga-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=openiga -p 5432:5432 -d postgres
